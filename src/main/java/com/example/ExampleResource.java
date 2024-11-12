@@ -8,9 +8,12 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,33 @@ public class ExampleResource {
         p.setName(capitalizeWords(p.getName()));
         p.setDescription(capitalizeWords(p.getDescription()));
         return p;
+    }
+
+    @GET
+    @Path("/fruits/{name}/price")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<Fruit> fruit(@PathParam("name") String name) {
+        System.out.println(Thread.currentThread().getName() + "getting fruit " + name);
+        var uni = myRemoteService.getFruitName(name)
+                .onItem().transformToUni(s ->
+                        myRemoteService.getPrice().onItem().transform(p -> new Fruit(s, p))
+                );
+
+        return uni;
+    }
+
+    @GET
+    @Path("/fruits/{name}/price/async")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<Fruit> fruitAsync(@PathParam("name") String name) {
+        System.out.println(Thread.currentThread().getName() + "getting fruit async" + name);
+        var uniName = myRemoteService.getFruitName(name);
+        var uniPrice = myRemoteService.getPrice();
+
+        var combined = Uni.combine().all().unis(uniName, uniPrice).asTuple()
+                .onItem().transform(objects -> new Fruit(objects.getItem1(), objects.getItem2()));
+
+        return combined;
     }
 
     @POST
@@ -70,6 +100,21 @@ public class ExampleResource {
                 .retry()
                 .withBackOff(Duration.ofMillis(100))
                 .atMost(8).log();
+    }
+
+    @GET
+    @Path("/fruits/{name}")
+    public Uni<String> getFruitName(@PathParam("name") String name){
+        return Uni.createFrom().item(name)
+                .onItem().delayIt().by(Duration.ofMillis(10000));
+    }
+
+    @GET
+    @Path("/fruits/price")
+    public Uni<BigDecimal> getPrice(){
+        double price = new Random().nextDouble() * 10;
+        return Uni.createFrom().item(BigDecimal.valueOf(price).setScale(2, RoundingMode.CEILING))
+                .onItem().delayIt().by(Duration.ofMillis(5000));
     }
 
 
