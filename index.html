@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Example</title>
+    <style>
+        #number {
+            font-size: 2em;
+            color: blue;
+            border: 2px solid black;
+            padding: 10px;
+            width: 100px;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>Server-Sent Events Example</h1>
+<div id="number">0</div>
+<script>
+    const numberDiv = document.getElementById('number');
+    const eventSource = new EventSource('/api/sse');
+
+    eventSource.onmessage = function(event) {
+        numberDiv.textContent = event.data;
+    };
+
+    eventSource.onerror = function() {
+        numberDiv.textContent = "Error";
+    };
+</script>
+</body>
+</html>
